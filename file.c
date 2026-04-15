@@ -3,84 +3,85 @@
 #include <string.h>
 
 #define MAX 256
-#define FICHIER "contacts.txt"
+#define FICHIER "contacts.csv"
 
-int lignes = 0;
-char nom[50], prenom[50], telephone[20], genre[20];
-
-// decomposer une ligne en champs
-void parser_ligne(char *ligne, char *nom, char *prenom, char *telephone, char *genre) {
-    sscanf(ligne, "%[^;];%[^;];%[^;];%[^\n]", nom, prenom, telephone, genre);
+void parser_ligne(const char *ligne, char *nom, char *prenom, char *telephone, char *genre) {
+    if (sscanf(ligne, "%49[^;];%49[^;];%19[^;];%19[^\n]",
+               nom, prenom, telephone, genre) != 4) {
+        nom[0] = '\0';
+        prenom[0] = '\0';
+        telephone[0] = '\0';
+        genre[0] = '\0';
+    }
 }
 
-// afficher le header du tableau
 void print_header() {
-    printf("N |  NOM   |  PRENOM    | TELEPHONE | GENRE \n");
-    printf("---------------------------------------------\n");
+    printf("N | NOM               | PRENOM           | TELEPHONE        | GENRE\n");
+    printf("---------------------------------------------------------------------\n");
 }
 
-// afficher une seul ligne
-void print_line(int lignes, char *nom, char *prenom, char *telephone, char *genre) {
-    printf("%d | %s | %s | %s | %s\n", lignes, nom, prenom, telephone, genre);
+void print_line(int numero, const char *nom, const char *prenom,
+                const char *telephone, const char *genre) {
+    printf("%d | %-17s | %-17s | %-16s | %s\n",
+           numero, nom, prenom, telephone, genre);
 }
 
-// Afficher tout le contenu
 void afficher_fichier() {
     FILE *f = fopen(FICHIER, "r");
     char ligne[MAX];
+    char nom[50], prenom[50], telephone[20], genre[20];
+    int numero = 1;
 
     if (f == NULL) {
         printf("Erreur ouverture fichier\n");
         return;
     }
 
-    printf("=== Contenu du fichier ===\n");
-    
     print_header();
-    
-    int lignes = 1;
-    
-    while (fgets(ligne, MAX, f)) {
-        parser_ligne(ligne, nom, prenom, telephone, genre);
-        print_line(lignes, nom, prenom, telephone, genre);
 
-        lignes++;
+    while (fgets(ligne, sizeof(ligne), f)) {
+        parser_ligne(ligne, nom, prenom, telephone, genre);
+
+        if (nom[0] != '\0') {
+            print_line(numero, nom, prenom, telephone, genre);
+            numero++;
+        }
     }
 
     fclose(f);
 }
 
-// Afficher une ligne précise
-void afficher_ligne(int num) {
+void afficher_ligne(int numero_recherche) {
     FILE *f = fopen(FICHIER, "r");
     char ligne[MAX];
-    int compteur = 1;
+    char nom[50], prenom[50], telephone[20], genre[20];
+    int numero = 1;
 
     if (f == NULL) {
         printf("Erreur ouverture fichier\n");
         return;
     }
 
-    while (fgets(ligne, MAX, f)) {
-        if (compteur == num) {
+    while (fgets(ligne, sizeof(ligne), f)) {
+        if (numero == numero_recherche) {
             parser_ligne(ligne, nom, prenom, telephone, genre);
 
             print_header();
-            print_line(compteur, nom, prenom, telephone, genre);
-            
+            print_line(numero, nom, prenom, telephone, genre);
+
             fclose(f);
             return;
         }
-        compteur++;
+
+        numero++;
     }
 
     printf("Ligne non trouvée\n");
     fclose(f);
 }
 
-// Ajouter une nouvelle ligne à la fin du fichier
 void ajouter_contact() {
-    FILE *f = fopen(FICHIER, "a");
+    FILE *f = fopen(FICHIER, "a+");
     char nom[50], prenom[50], telephone[20], genre[20];
 
     if (f == NULL) {
@@ -89,109 +90,239 @@ void ajouter_contact() {
     }
 
     printf("Nom: ");
-    scanf(" %[^\n]", nom);
+    scanf(" %49[^\n]", nom);
 
     printf("Prenom: ");
-    scanf(" %[^\n]", prenom);
+    scanf(" %49[^\n]", prenom);
 
     printf("Telephone: ");
-    scanf(" %[^\n]", telephone);
+    scanf(" %19[^\n]", telephone);
 
     printf("Genre: ");
-    scanf(" %[^\n]", genre);
+    scanf(" %19[^\n]", genre);
 
-    fprintf(f, "\n%s;%s;%s;%s", nom, prenom, telephone, genre);
+    fseek(f, 0, SEEK_END);
 
-    printf("[i] : Contact ajoute avec succes.\n");
+    long taille = ftell(f);
+    if (taille > 0) {
+        fprintf(f, "\n");
+    }
+
+    fprintf(f, "%s;%s;%s;%s", nom, prenom, telephone, genre);
 
     fclose(f);
+
+    printf("Contact ajoute avec succes.\n");
 }
 
-//ecrire une ligne précis dans le fichier sans supprimer les autres
-/*void insert_ligne(int ligne, char *nom, char *prenom, char *telephone, char *genre) {
+void supprimer_ligne(int ligne_a_supprimer) {
     FILE *f = fopen(FICHIER, "r");
-    FILE *temp = fopen("temp.txt", "w");
-    char ligne[MAX];
-    int compteur = 1;
+    FILE *temp = fopen("temp1.csv", "w");
+    char buffer[MAX];
+    int numero = 1;
+    int trouve = 0;
 
     if (f == NULL || temp == NULL) {
         printf("Erreur ouverture fichier\n");
+
+        if (f) fclose(f);
+        if (temp) fclose(temp);
+
         return;
     }
 
-    while (fgets(ligne, MAX, f)) {
-        if (compteur == ligne) {
-            fprintf(temp, "%s;%s;%s;%s\n", nom, prenom, telephone, genre);
+    while (fgets(buffer, sizeof(buffer), f)) {
+        if (numero != ligne_a_supprimer) {
+            fputs(buffer, temp);
         } else {
-            fputs(ligne, temp);
+            trouve = 1;
         }
-        compteur++;
+
+        numero++;
     }
 
     fclose(f);
     fclose(temp);
 
     remove(FICHIER);
-    rename("temp.txt", FICHIER);
-}*/
+    rename("temp1.csv", FICHIER);
 
-// crée un fichier temporaire et copie tout le contenu du fichier original sauf la ligne à supprimer, puis renomme le fichier temporaire pour remplacer l'original
-void supprimer_ligne(int ligne_to_supprimer) {
+    if (trouve) {
+        printf("Ligne %d supprimée.\n", ligne_a_supprimer);
+    } else {
+        printf("Ligne %d introuvable.\n", ligne_a_supprimer);
+    }
+}
+
+void inserer_ligne(int ligne_a_inserer, const char *nom, const char *prenom,
+                   const char *telephone, const char *genre) {
     FILE *f = fopen(FICHIER, "r");
-    FILE *temp = fopen("temp.txt", "w");
-    char ligne[MAX];
-    int compteur = 1;
+    FILE *temp = fopen("temp.csv", "w");
+    char buffer[MAX];
+    int numero = 1;
+    int trouve = 0;
 
     if (f == NULL || temp == NULL) {
         printf("Erreur ouverture fichier\n");
+
+        if (f) fclose(f);
+        if (temp) fclose(temp);
+
         return;
     }
 
-    while (fgets(ligne, MAX, f)) {
-        if (compteur != ligne_to_supprimer){
-            fputs(ligne, temp);
+    while (fgets(buffer, sizeof(buffer), f)) {
+        if (numero == ligne_a_inserer) {
+            fprintf(temp, "%s;%s;%s;%s\n", nom, prenom, telephone, genre);
+            trouve = 1;
         }
-        compteur++;
+
+        fputs(buffer, temp);
+        numero++;
+    }
+
+    if (!trouve) {
+        fprintf(temp, "%s;%s;%s;%s\n", nom, prenom, telephone, genre);
     }
 
     fclose(f);
     fclose(temp);
 
     remove(FICHIER);
-    rename("temp.txt", FICHIER);
+    rename("temp.csv", FICHIER);
 
-    printf("Ligne %d supprimée (si elle existait).\n", ligne_to_supprimer);
+    printf("Ligne %d insérée.\n", ligne_a_inserer);
 }
 
-// Recherche par nom
-void rechercher_nom(char nom_recherche[]) {
-    
+void rechercher_nom(const char *nom_recherche) {
     FILE *f = fopen(FICHIER, "r");
     char ligne[MAX];
     char nom[50], prenom[50], telephone[20], genre[20];
+    int numero = 1;
     int trouve = 0;
-    int compteur = 1;
 
     if (f == NULL) {
         printf("Erreur ouverture fichier\n");
         return;
     }
 
-    while (fgets(ligne, MAX, f)){
-        sscanf(ligne, "%[^;];%[^;];%[^;];%[^\n]", nom, prenom, telephone, genre);
+    while (fgets(ligne, sizeof(ligne), f)) {
+        parser_ligne(ligne, nom, prenom, telephone, genre);
 
         if (strcmp(nom, nom_recherche) == 0) {
-            printf("\n[i] : Contact Trouve\n");
-            print_header();
-            print_line(compteur,nom, prenom, telephone, genre);
+            if (!trouve) {
+                print_header();
+            }
+
+            print_line(numero, nom, prenom, telephone, genre);
             trouve = 1;
         }
-        compteur++;
+
+        numero++;
     }
 
     if (!trouve) {
-        printf("[i] : Introuvable !\n");
+        printf("Contact introuvable.\n");
     }
 
     fclose(f);
+}
+
+void modifier_ligne(int ligne_a_modifier) {
+    FILE *f = fopen(FICHIER, "r");
+    FILE *temp = fopen("temp.csv", "w");
+
+    char buffer[MAX];
+    char nom[50], prenom[50], telephone[20], genre[20];
+    int numero = 1;
+    int trouve = 0;
+    int choix;
+
+    if (f == NULL || temp == NULL) {
+        printf("Erreur ouverture fichier\n");
+
+        if (f) fclose(f);
+        if (temp) fclose(temp);
+
+        return;
+    }
+
+    while (fgets(buffer, sizeof(buffer), f)) {
+
+        if (numero == ligne_a_modifier) {
+            trouve = 1;
+
+            parser_ligne(buffer, nom, prenom, telephone, genre);
+
+            do {
+                printf("\n----------------------------------------\n");
+                printf("1. Nom       : %s\n", nom);
+                printf("2. Prenom    : %s\n", prenom);
+                printf("3. Telephone : %s\n", telephone);
+                printf("4. Genre     : %s\n", genre);
+
+                printf("\n0. Valider\n\n");
+                
+                printf("> Choix : ");
+                scanf("%d", &choix);
+
+                switch (choix) {
+                    case 1:
+                        printf("Nouveau nom : ");
+                        scanf(" %49[^\n]", nom);
+                        break;
+
+                    case 2:
+                        printf("Nouveau prenom : ");
+                        scanf(" %49[^\n]", prenom);
+                        break;
+
+                    case 3:
+                        printf("Nouveau telephone : ");
+                        scanf(" %19[^\n]", telephone);
+                        break;
+
+                    case 4:
+                        printf("Nouveau genre : ");
+                        scanf(" %19[^\n]", genre);
+                        break;
+
+                    case 0:
+                        break;
+
+                    default:
+                        printf("Choix invalide\n");
+                }
+
+            } while (choix != 0);
+
+            fprintf(temp, "%s;%s;%s;%s\n", nom, prenom, telephone, genre);
+        }
+        else {
+            fputs(buffer, temp);
+        }
+
+        numero++;
+    }
+
+    fclose(f);
+    fclose(temp);
+
+    if (!trouve) {
+        remove("temp.csv");
+        printf("Ligne %d introuvable.\n", ligne_a_modifier);
+        return;
+    }
+
+    if (remove(FICHIER) != 0) {
+        printf("Impossible de supprimer l'ancien fichier.\n");
+        return;
+    }
+
+    if (rename("temp.csv", FICHIER) != 0) {
+        printf("Impossible de renommer le fichier temporaire.\n");
+        return;
+    }
+
+    printf("Ligne %d modifiee.\n", ligne_a_modifier);
 }

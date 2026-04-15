@@ -15,7 +15,9 @@ int main() {
         printf("3. Ajouter un contact\n");
         printf("4. Supprimer un contact\n");
         printf("5. Rechercher par nom\n");
-        printf("0. Quitter\n\n");
+        printf("6. Modifier un contact\n");
+
+        printf("\n0. Quitter\n\n");
         printf(" > Choix: ");
         scanf("%d", &choix);
 
@@ -41,6 +43,11 @@ int main() {
                 scanf(" %[^\n]", nom);
                 rechercher_nom(nom);
                 break;
+
+            case 6:
+                printf("Numero de ligne: ");
+                scanf("%d", &ligne);
+                modifier_ligne(ligne);
         }
 
     } while (choix != 0);
